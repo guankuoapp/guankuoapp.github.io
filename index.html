@@ -63,7 +63,7 @@
 			</ul>
 		</nav>
    <nav>
-        总文章数 7
+        总文章数 8
     </nav>
 		<nav class="header-smart-menu">
     		
@@ -151,6 +151,91 @@
           </div>
           <div id="js-content" class="content-ll">
             
+  
+    <article id="post-mysql-master-slave" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2021/08/mysql-master-slave/">Mysql的主从同步和读写分离，原理及基础配置讲解</a>
+    </h1>
+  
+
+        
+        <a href="/2021/08/mysql-master-slave/" class="archive-article-date">
+  	<time datetime="2021-08-20T12:58:22.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-08-20</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h4 id="一，什么是mysql的主从？为什么要主从？什么是读写分离？为什么要读写分离？"><a href="#一，什么是mysql的主从？为什么要主从？什么是读写分离？为什么要读写分离？" class="headerlink" title="一，什么是mysql的主从？为什么要主从？什么是读写分离？为什么要读写分离？"></a>一，什么是mysql的主从？为什么要主从？什么是读写分离？为什么要读写分离？</h4><p>1.首先，我们要知道，服务器的配置会到顶的</p>
+<p>2.一台放mysql的单体服务器，我们简称他为mysql服务器，当我们有200人连接到这台服务器存储数据的时候，他的硬件被占用了60%，还扛得住，那么，等500人连接到这台数据库的时候，他的硬件负荷被增加到150%了，就扛不住了，mysql这个时候就会出问题</p>
+        
+          <a class="article-more-a" href="/2021/08/mysql-master-slave/#more">more >></a>
+        
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">Mysql</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">读写分离</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">主从同步</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2021/08/mysql-master-slave/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
   
     <article id="post-git" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
@@ -859,6 +944,18 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">GIT</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Mysql</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">读写分离</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">主从同步</a>
               </li>
             
             <div class="clearfix"></div>

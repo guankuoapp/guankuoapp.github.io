@@ -6,16 +6,21 @@
   <meta name="renderer" content="webkit">
   <meta http-equiv="X-UA-Compatible" content="IE=edge" >
   <link rel="dns-prefetch" href="https://guankuoapp.github.io">
-  <title>Archives | Guankuo‘s blog</title>
+  <title>Mysql的主从同步和读写分离，原理及基础配置讲解 | Guankuo‘s blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="description" content="Guankuo‘s blog">
-<meta property="og:type" content="website">
-<meta property="og:title" content="Guankuo‘s blog">
-<meta property="og:url" content="https://guankuoapp.github.io/archives/index.html">
+  <meta name="description" content="一，什么是mysql的主从？为什么要主从？什么是读写分离？为什么要读写分离？1.首先，我们要知道，服务器的配置会到顶的 2.一台放mysql的单体服务器，我们简称他为mysql服务器，当我们有200人连接到这台服务器存储数据的时候，他的硬件被占用了60%，还扛得住，那么，等500人连接到这台数据库的时候，他的硬件负荷被增加到150%了，就扛不住了，mysql这个时候就会出问题">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Mysql的主从同步和读写分离，原理及基础配置讲解">
+<meta property="og:url" content="https://guankuoapp.github.io/2021/08/mysql-master-slave/index.html">
 <meta property="og:site_name" content="Guankuo‘s blog">
-<meta property="og:description" content="Guankuo‘s blog">
+<meta property="og:description" content="一，什么是mysql的主从？为什么要主从？什么是读写分离？为什么要读写分离？1.首先，我们要知道，服务器的配置会到顶的 2.一台放mysql的单体服务器，我们简称他为mysql服务器，当我们有200人连接到这台服务器存储数据的时候，他的硬件被占用了60%，还扛得住，那么，等500人连接到这台数据库的时候，他的硬件负荷被增加到150%了，就扛不住了，mysql这个时候就会出问题">
 <meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2021-08-20T12:58:22.000Z">
+<meta property="article:modified_time" content="2021-08-20T10:56:04.694Z">
 <meta property="article:author" content="KuoGuan">
+<meta property="article:tag" content="Mysql">
+<meta property="article:tag" content="读写分离">
+<meta property="article:tag" content="主从同步">
 <meta name="twitter:card" content="summary">
   
     <link rel="alternative" href="/atom.xml" title="Guankuo‘s blog" type="application/atom+xml">
@@ -150,36 +155,132 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            
-  
-  
+            <article id="post-mysql-master-slave" class="article article-type-post " itemscope itemprop="blogPost">
+  <div class="article-inner">
     
-    
-      
-      
-      <section class="archives-wrap">
-        <div class="archive-year-wrap">
-          <a href="/archives/2021" class="archive-year">2021</a>
-        </div>
-        <div class="archives">
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2021/08/mysql-master-slave/" class="archive-article-date">
-  	<time datetime="2021-08-20T12:58:22.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-08-20</time>
-</a>
-        </div>
-    	 
+      <header class="article-header">
+        
   
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2021/08/mysql-master-slave/">Mysql的主从同步和读写分离，原理及基础配置讲解</a>
+    <h1 class="article-title" itemprop="name">
+      Mysql的主从同步和读写分离，原理及基础配置讲解
     </h1>
   
 
-        <div class="article-info info-on-right">
-          
+        
+        <a href="/2021/08/mysql-master-slave/" class="archive-article-date">
+  	<time datetime="2021-08-20T12:58:22.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-08-20</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h4 id="一，什么是mysql的主从？为什么要主从？什么是读写分离？为什么要读写分离？"><a href="#一，什么是mysql的主从？为什么要主从？什么是读写分离？为什么要读写分离？" class="headerlink" title="一，什么是mysql的主从？为什么要主从？什么是读写分离？为什么要读写分离？"></a>一，什么是mysql的主从？为什么要主从？什么是读写分离？为什么要读写分离？</h4><p>1.首先，我们要知道，服务器的配置会到顶的</p>
+<p>2.一台放mysql的单体服务器，我们简称他为mysql服务器，当我们有200人连接到这台服务器存储数据的时候，他的硬件被占用了60%，还扛得住，那么，等500人连接到这台数据库的时候，他的硬件负荷被增加到150%了，就扛不住了，mysql这个时候就会出问题</p>
+<span id="more"></span>
+<p>3.那我们遇到了(2)的问题，我们怎么去处理？思路是，再加配置，让mysql服务器承担起500人的链接，但是，5000人呢？配置到最豪华了也承担不起，所以，我们应该随着链接人数的增加，再多加机器，把链接的人们平均到这些机子中，让不同的mysql服务器承担他能承担的人数</p>
+<p>4.我们有了(3)的思路，就又遇到了一个问题，这么多机器，他们的数据会被写的乱七八糟的，到时候，我在A机器里更改的数据，结果在B机器里查不到，怎么办？所以我们需要他们的数据同步，数据同步有很多种方式，第一种，互为主从，第二种，一主多从，第三种，多主多从，有点看不懂？没关系，继续往下看：</p>
+<p>5.在(4)中，我们提出了互为主从，一主多从，多主多从，多主一从的概念，那么这些主从关系是什么意思呢？主从，对应的是mysql中的主库(master)，从库(slave)，打个比方，家里买了两套一摸一样的方式，准备装修的也一摸一样，这个时候，第一个房子铺了地板，那么第二个房子也和第一个房子一样，铺垫版，第一个房子安水龙头，第二个房子也一摸一样的安装水龙头，这个就叫主(第一个房子)-&gt;从(第二个房子)，那么同时，第二个房子安装了一个柜子，第一个房子也跟着安装这个柜子，这个就叫从(第二个房子)-&gt;主(第一个房子)，这种两个房子的互相景象，改一个另一个也会一起同步的行为，就叫互为主从。那么，什么是一主多从呢？买了好多套房子，第一套房子设计好，开始装修，无论第一套房子安装了什么，其他套照办，这就叫一主多从，这也是最常见的数据库布局，那么什么是多主多从呢？还是有好多套房子，只装修一套其他抄太慢了，一起装修几套，有的装卫生间，有的卧室，这几套之间互为主从，其他的房子抄这几套房子互为主从出来的装修方案，就叫多主多从，懂了么？增删改查中，增删改，就是写库，查就是读库。</p>
+<p>6.那么什么时候选单点，什么时候选互为，什么时候选一主多，什么时候选多主多呢？这时候，就提出了一个概念，读写分离(读库和写库，分别会对数据库造成不同的开销成本，读库，会有大量的计算，所以，对于mysql服务器的内存消耗很大，写库，会有大量的IO操作，所以，对于mysql服务器的磁盘开销很大)，日常业务中，读库的需求远大于写库，所以，除了业务量很小选择单点，最多使用的场景就是一主多从，互为主从的业务场景不多，因为读和一般都会分开了，如果写量远高于读量，对于读的需求很少，那就多主一从。</p>
+<h4 id="二，MYSQL主从原理"><a href="#二，MYSQL主从原理" class="headerlink" title="二，MYSQL主从原理"></a>二，MYSQL主从原理</h4><p>1.通过以上，知道了什么是主，从，那么主和从在服务层面都干了什么？主库会开通二进制的binlog日志，这个binlog可以理解为sql记录，在这个库里执行的每一条sql，都会记录到这个sql里，然后主库有开通一个服务，当数据库发生变化的时候(更新binlog的时候)，就会通过服务发送跟他链接的从库一个通知，告诉他，我有更新啦，快来同步！！</p>
+<p>2.那么，从库干嘛呢？从库有开通两个服务，第一个服务就是等着主库通知，主库说，快来同步，从库的这个服务就知道了要同步，然后，从库的另一个服务就会乖乖的去主库那边，拿到主库的binlog，然后把主库更新的内容都更新到自己的这个库里面来，binlog是什么？主库里执行的每一条sql记录。所以，同步到从库的行为就可以理解为从库一条一条的重复干了主库干过的事，所以，从开启了主从开始的时间开始，之后，主库的每一条变化从库都会跟着一起变化。</p>
+<h4 id="三，配置主从-主"><a href="#三，配置主从-主" class="headerlink" title="三，配置主从(主)"></a>三，配置主从(主)</h4><p>0.请尽量保证主从数据库版本一致，因为有很多sql语句，有的版本支持有的版本不支持。</p>
+<p>1.先开启mysql的binlog，选择备份的库，或者不备份的库等等，具体查查别人的日志吧，我懒得写</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">vim /etc/my.cnf</span><br><span class="line"><span class="meta"></span></span><br><span class="line"><span class="meta">#</span><span class="bash">里面编辑</span></span><br><span class="line"><span class="meta"></span></span><br><span class="line"><span class="meta">#</span><span class="bash">开启主从同步</span></span><br><span class="line">server-id = 1</span><br><span class="line"><span class="meta">#</span><span class="bash">binlog名称</span></span><br><span class="line">log-bin=master-bin</span><br><span class="line"><span class="meta">#</span><span class="bash">binlog方式</span></span><br><span class="line">binlog_format=mixed</span><br><span class="line"><span class="meta">#</span><span class="bash">指定要同步的数据库</span></span><br><span class="line">binlog-do-db=avatalk_dev</span><br></pre></td></tr></table></figure>
+
+<p>重启mysql服务</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">service mysqld restart;</span><br></pre></td></tr></table></figure>
+
+<p>2.先链接主库的mysql </p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mysql -u root -p</span><br></pre></td></tr></table></figure>
+
+<p>3.新增加一个账号给从库，用于连接主库,写ip的时候，%表示泛指，如果不指定ip，那里克制直接写%,</p>
+<p>我们建立一个slaveroot账户，密码为slavepwd</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mysql &gt; grant replication slave on *.* to &#x27;slaveroot&#x27;@&#x27;192.168.253.%&#x27; identified by &#x27;slavepwd&#x27;;</span><br></pre></td></tr></table></figure>
+
+<p>4.上锁，上锁了，主库就停止了一切的读写</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mysql &gt; flush tables with read lock;</span><br></pre></td></tr></table></figure>
+
+<p>5.查看binlog的位置信息</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mysql &gt; show master status;</span><br></pre></td></tr></table></figure>
+
+<p>6.会得到这样的信息&gt;&gt;&gt;&gt;&gt;&gt; 表示binlog的位置，position，备份的库，这个要记录,一会要用</p>
+<p>+——————-+———-+————–+——————+——————-+<br>| File              | Position | Binlog_Do_DB | Binlog_Ignore_DB | Executed_Gtid_Set |<br>+——————-+———-+————–+——————+——————-+<br>| master-bin.000001 | 21060240 | avatalk_dev  |                  |                   |<br>+——————-+———-+————–+——————+——————-+</p>
+<p>7.把mysql导出来，大的话就压缩，</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mysqldump -uroot -p密码 avatalk_dev &gt; 2021.08.20dev.sql(这个是文件名)</span><br></pre></td></tr></table></figure>
+
+<p>8.解锁</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mysql &gt; unlock tables;</span><br></pre></td></tr></table></figure>
+
+<p>9.主库这边，OK了</p>
+<h4 id="四，配置主从-从"><a href="#四，配置主从-从" class="headerlink" title="四，配置主从(从)"></a>四，配置主从(从)</h4><p>0.进入从库的服务器,把上面生成的sql存进从库，在存进去之前，我们先把从库里面的库建立好</p>
+<p>进入mysql</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mysql &gt; create DATABASE 库名;</span><br></pre></td></tr></table></figure>
+
+<p>然后在sql文件的执行最前面</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">vim 2021.08.20dev.sql</span><br><span class="line"><span class="meta">#</span><span class="bash">加入</span></span><br><span class="line">use 库名;</span><br><span class="line"><span class="meta">#</span><span class="bash">执行数据库文件导入</span></span><br><span class="line">mysql -uroot -p从库密码 &lt; 2021.08.20dev.sql</span><br></pre></td></tr></table></figure>
+
+
+
+<p>1.把从库mysql的binlog啥的也都打开，因为从第一台从之后的从，更新的数据的binlog就从库拿，减轻主库的压力</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">vim /etc/my.cnf</span><br><span class="line"><span class="meta"></span></span><br><span class="line"><span class="meta">#</span><span class="bash">里面编辑</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">server-id = 2</span><br><span class="line">log-bin=slave-bin</span><br><span class="line">binlog_format=mixed</span><br><span class="line"><span class="meta">#</span><span class="bash">指定要复制的数据库</span></span><br><span class="line">replicate-rewrite-db=avatalk_dev-&gt;avatalk_dev</span><br><span class="line"><span class="meta">#</span><span class="bash">如果需要指定表，就写(一般都是全库从，就不用写了)：</span></span><br><span class="line">replicate-wild-do-table=avatalk_dev.user</span><br><span class="line">replicate-wild-do-table=avatalk_dev.userinfo</span><br></pre></td></tr></table></figure>
+
+<p>重启mysql服务</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">service mysqld restart;</span><br></pre></td></tr></table></figure>
+
+<p>2.进入mysql 执行</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">mysql &gt; stop slave;  </span><br><span class="line">			&gt; change master to</span><br><span class="line">			&gt; master_host=&#x27;XXX.XXX.XX.XX&#x27;,</span><br><span class="line">			&gt; master_user=&#x27;slaveroot&#x27;,</span><br><span class="line">			&gt; master_password=&#x27;slavepwd&#x27;,</span><br><span class="line">			&gt; master_log_file=&#x27;master-bin.000001&#x27;,</span><br><span class="line">			&gt; master_log_pos=21060240;</span><br><span class="line">			&gt; start slave;</span><br></pre></td></tr></table></figure>
+
+<p>3.执行之后看开启成功了没有</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">show slave status\G;</span><br></pre></td></tr></table></figure>
+
+<p>结果里:</p>
+<figure class="highlight tex"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">*************************** 1. row ***************************</span><br><span class="line">               Slave<span class="built_in">_</span>IO<span class="built_in">_</span>State: Waiting for master to send event</span><br><span class="line">                  Master<span class="built_in">_</span>Host: 120.79.67.15</span><br><span class="line">                  Master<span class="built_in">_</span>User: nucslave</span><br><span class="line">                  Master<span class="built_in">_</span>Port: 3306</span><br><span class="line">                Connect<span class="built_in">_</span>Retry: 60</span><br><span class="line">              Master<span class="built_in">_</span>Log<span class="built_in">_</span>File: master-bin.000001</span><br><span class="line">          Read<span class="built_in">_</span>Master<span class="built_in">_</span>Log<span class="built_in">_</span>Pos: 22254102</span><br><span class="line">               Relay<span class="built_in">_</span>Log<span class="built_in">_</span>File: localhost-relay-bin.000005</span><br><span class="line">                Relay<span class="built_in">_</span>Log<span class="built_in">_</span>Pos: 186839</span><br><span class="line">        Relay<span class="built_in">_</span>Master<span class="built_in">_</span>Log<span class="built_in">_</span>File: master-bin.000001</span><br><span class="line">             Slave<span class="built_in">_</span>IO<span class="built_in">_</span>Running: Yes（这个YES代表已经跑起来了,不是YES就是没配置对）</span><br><span class="line">            Slave<span class="built_in">_</span>SQL<span class="built_in">_</span>Running: Yes (这个YES表示同步没问题。如果不是，基本就是两个库的结构不一样)</span><br><span class="line">           </span><br></pre></td></tr></table></figure>
+
+<h4 id="五，测试同步"><a href="#五，测试同步" class="headerlink" title="五，测试同步"></a>五，测试同步</h4><p>1.随便弄弄主库，看看从库同步了没有就行了</p>
+<h4 id="六，读写分离"><a href="#六，读写分离" class="headerlink" title="六，读写分离"></a>六，读写分离</h4><p>1.给主库和从库分别建立对应的权限账号，IP那里可以用%代表全部</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mysql &gt; GRANT SELECT,INSERT,UPDATE,DELETE,CREATE,DROP ON avatalk_dev.* TO &#x27;guankuoapp&#x27;@&#x27;IP&#x27;IDENTIFIED BY &#x27;密码&#x27;;</span><br></pre></td></tr></table></figure>
+
+<p>2.要变通，有的是专门读的，有写的，有建立表的，有删除库的，要根据业务区分，同时有的是同步一张表，有的是同步多张表，具体看业务而定，当然，有专门的运维人员，只是，开发人员必须得知道这些原理，才能设计出更好的算法。</p>
+
+      
+
+      
+        <div class="page-reward">
+          <a href="javascript:;" class="page-reward-btn tooltip-top">
+            <div class="tooltip tooltip-east">
+            <span class="tooltip-item">
+              赏
+            </span>
+            <span class="tooltip-content">
+              <span class="tooltip-text">
+                <span class="tooltip-inner">
+                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢你的糖果<i class="icon icon-quo-right"></i></p>
+                  <div class="reward-box">
+                    
+                    <div class="reward-box-item">
+                      <img class="reward-img" src="/img/alipay.png">
+                      <span class="reward-type">支付宝</span>
+                    </div>
+                    
+                    
+                    <div class="reward-box-item">
+                      <img class="reward-img" src="/img/wepay.png">
+                      <span class="reward-type">微信</span>
+                    </div>
+                    
+                  </div>
+                </span>
+              </span>
+            </span>
+          </div>
+          </a>
+        </div>
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
 	<div class="article-tag tagcloud">
 		<i class="icon-price-tags icon"></i>
 		<ul class="article-tag-list">
@@ -199,310 +300,55 @@
 		</ul>
 	</div>
 
-          
+      
 
-        </div>
-        <div class="clearfix"></div>
-    </header>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
   </div>
 </article>
+
   
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2021/08/git/" class="archive-article-date">
-  	<time datetime="2021-08-16T03:00:45.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-08-16</time>
-</a>
+<nav id="article-nav">
+  
+  
+    <a href="/2021/08/git/" id="article-nav-older" class="article-nav-link-wrap">
+      <div class="article-nav-title">FTP，SVN和GIT的区别，GIT是什么，怎样使用GIT(写给小吴)</div>
+      <i class="icon-circle-right"></i>
+    </a>
+  
+</nav>
+
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
         </div>
-    	 
+        
+        
+    </div>
+</aside>
+
+
+
   
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2021/08/git/">FTP，SVN和GIT的区别，GIT是什么，怎样使用GIT(写给小吴)</a>
-    </h1>
+  
   
 
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">FTP</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">SVN</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">GIT</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-八月随笔">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2021/08/mylife/" class="archive-article-date">
-  	<time datetime="2021-08-08T08:51:32.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-08-08</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2021/08/mylife/">mylife</a>
-    </h1>
   
 
-        <div class="article-info info-on-right">
-          
-          
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2021/08/phpes/" class="archive-article-date">
-  	<time datetime="2021-08-08T04:44:27.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-08-08</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2021/08/phpes/">PHP关于ES的package(Elasticsearch依赖)</a>
-    </h1>
   
 
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">Elasticsearch7.4</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">PHP7.4</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">composer</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
   
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2021/08/Kibana/" class="archive-article-date">
-  	<time datetime="2021-08-01T09:20:34.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-08-01</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2021/08/Kibana/">centos7/8搭建Kibana</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">Elasticsearch</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">Centos7/8</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">Kibana</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2021/07/centos8s8EsPhp/" class="archive-article-date">
-  	<time datetime="2021-07-06T03:39:18.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-07-06</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2021/07/centos8s8EsPhp/">centos7/8搭建Elasticsearch7.4和ik</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">Elasticsearch</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">Centos7/8</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2021/07/myfrist/" class="archive-article-date">
-  	<time datetime="2021-07-05T12:58:22.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-07-05</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2021/07/myfrist/">Hexo + GitHub 搭建GitHubPages Blog</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">Mac</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">GitHub Pages</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">Hexo</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2021/07/halo/" class="archive-article-date">
-  	<time datetime="2021-07-04T12:58:22.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-07-04</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2021/07/halo/">初入江湖</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">init</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-  
-    </div></section>
-  
-
-    
 
 
           </div>
@@ -525,8 +371,8 @@
 	var yiliaConfig = {
 		mathjax: false,
 		isHome: false,
-		isPost: false,
-		isArchive: true,
+		isPost: true,
+		isArchive: false,
 		isTag: false,
 		isCategory: false,
 		open_in_new: false,
